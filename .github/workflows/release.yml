@@ -24,17 +24,28 @@ jobs:
         - uses: actions/setup-node@v3
           with:
              node-version: ${{ matrix.node-version }}
-
-        - name: Get version
+       
+        - name: Set Configuration
+          id: conf
           run: |
               dotnet tool install -g GitVersion.Tool --version=5.6.4
-              dotnet gitversion /output json /config "${{ github.workspace }}/GitVersion.yml"
-              echo "SemVer=$(dotnet gitversion /output json /config "${{ github.workspace }}/GitVersion.yml" /showvariable FullSemVer /verbosity Quiet)" >> $GITHUB_ENV
-          
-        - name: Set version
+              dotnet gitversion /output json /config "./GitVersion.yml"
+              
+              echo "semVer=$(dotnet gitversion /output json /config "./GitVersion.yml" /showvariable FullSemVer /verbosity Quiet | sed 's/^[[:space:]]*//g')" >> $GITHUB_ENV
+              echo "binaryName=$(cat neutralino.config.json | grep binaryName | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g') | sed 's/^[[:space:]]*//g'" >> $GITHUB_ENV
+              
+              echo "Name: ${{ env.binaryName }}"
+              echo "Version: ${{ env.semVer }}"
+              
+        - name: Get Configuration 
           run: |
-              sed -i 's/%SemVer%/${{ env.SemVer }}/g' manifest.json
-              sed -i 's/0.0.0/${{ env.SemVer }}/g' neutralino.config.json
+              echo "Name: ${{ env.binaryName }}"
+              echo "Version: ${{ env.semVer }}"
+              
+        - name: Replace default version
+          run: |
+              sed -i 's/%SemVer%/${{ env.semVer }}/g' manifest.json
+              sed -i 's/0.0.0/${{ env.semVer }}/g' neutralino.config.json
           
         - name: Install neutralino
           run: npm install -g @neutralinojs/neu
@@ -54,7 +65,6 @@ jobs:
                !${{ github.workspace }}/.git
                !${{ github.workspace }}/node_modules
                !${{ github.workspace }}/bin
-
         - name: Display structure of uploaded files
           run: ls -R
           
@@ -77,20 +87,31 @@ jobs:
           with:
             name: build.workspace
             path: ${{ github.workspace }}
+            
 #         FIXME: Make appacker work! help (T_T)
 #        - name: Download appacker
 #          run: curl -s -L https://bluepload.unstable.life/selif/appackerv1311.exe > appacker.exe
           
 #        - name: Download resourceHacker
 #          run: curl -s -L https://bluepload.unstable.life/selif/resourcehacker.exe > resourceHacker.exe
-          
+
+        - name: Set Configuration
+          id: conf
+          run: |
+              echo "semVer=$(cat neutralino.config.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | sed 's/^[[:space:]]*//g')" | Out-File -FilePath $env:GITHUB_ENV -Append
+              echo "binaryName=$(cat neutralino.config.json | grep binaryName | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | sed 's/^[[:space:]]*//g')" | Out-File -FilePath $env:GITHUB_ENV -Append
+   
+        - name: Get Configuration 
+          run: |
+              echo "Name: ${{ env.binaryName }}"
+              echo "Version: ${{ env.semVer }}"
+              
         - name: Display structure of downloaded files
           run: ls -R
 
 #         - name: Pack launcher to Portable
 #           run: |
-#               $binaryName =$(cat ./neutralino.config.json | jq '.cli.binaryName' | tr -d '"')
-#                ./appacker.exe -r -src "./dist/$binaryName" -exe "$binaryName-win_x64.exe" -ico "./www/app.png" -dst "./dist/$binaryName.exe"
+#                ./appacker.exe -r -src "./dist/${{ env.binaryName }}" -exe "${{ env.binaryName }}-win_x64.exe" -ico "./www/app.png" -dst "./${{ env.binaryName }}.exe"
 
         - name: Upload workspace
           uses: actions/upload-artifact@v3
@@ -103,7 +124,7 @@ jobs:
                !${{ github.workspace }}/appacker.exe
                !${{ github.workspace }}/resourceHacker.exe
                !${{ github.workspace }}/resourceHacker.ini
-
+               
   release-launcher:
     runs-on: ${{ matrix.os }}
     name: Release launcher
@@ -123,27 +144,26 @@ jobs:
           with:
             name: pack.workspace
             path: ${{ github.workspace }}
-
-        - name: Delete build workspace
-          uses: jimschubert/delete-artifacts-action@v1
-          with:
-            artifact_name: build.workspace
-          
-        - name: Delete pack workspace
-          uses: jimschubert/delete-artifacts-action@v1
-          with:
-            artifact_name: pack.workspace
             
         - name: Display structure of downloaded files
           run: ls -R
 
+        - name: Set Configuration
+          id: conf
+          run: |
+              echo "semVer=$(cat neutralino.config.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | sed 's/^[[:space:]]*//g')" >> $GITHUB_ENV
+              echo "binaryName=$(cat neutralino.config.json | grep binaryName | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | sed 's/^[[:space:]]*//g')" >> $GITHUB_ENV
+          
+        - name: Get Configuration 
+          run: |
+              echo "Name: ${{ env.binaryName }}"
+              echo "Version: ${{ env.semVer }}"
+              
         - name: Copy the files to pages
           run: |
-              $binaryName =$(cat ./neutralino.config.json | jq '.cli.binaryName' | tr -d '"')
-              mkdir -p ${{ github.workspace }}/pages
-              mv "${{ github.workspace }}/dist/$binaryName" "${{ github.workspace }}/pages/public"
-              cp "${{ github.workspace }}/manifest.json" "${{ github.workspace }}/pages/manifest.json"
-
+              mkdir -p ./pages
+              mv "./dist/${{ env.binaryName }}" "./pages/public"
+              cp "./manifest.json" "./pages/manifest.json"
         - name: Push to github pages
           uses: s0/git-publish-subdir-action@develop
           env:
@@ -151,19 +171,20 @@ jobs:
               BRANCH: gh-pages # The branch name where you want to push the assets
               FOLDER: pages # The directory where your assets are generated
               GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub will automatically add this - you don't need to bother getting a token
-              MESSAGE: "Update manifest.json and resources.neu: v${{ env.SemVer }}" # The commit message
+              MESSAGE: "New version: ${{ env.semVer }}" # The commit message
 
-        - name: Create launcher zip
+        - name: Create ${{ env.binaryName }}.zip
           uses: papeloto/action-zip@v1
           with:
-              files: dist/
-              dest: launcher.zip
+              files: dist/${{ env.binaryName }}
+              dest: ${{ env.binaryName }}.zip
               
-        - name: Create release
-          uses: ncipollo/release-action@v1
+        - uses: maggie0002/actions/packages/automatic-releases@built-packages
           with:
-              name: v${{ env.SemVer }}
-              tag: ${{ env.SemVer }}
-              artifacts: "launcher.zip"
-              token: ${{ secrets.GITHUB_TOKEN }}
-              
+            repo_token: "${{ secrets.GITHUB_TOKEN }}"
+            automatic_release_tag: "latest"
+            prerelease: false
+            title: "Latest Assets"
+            files: |
+              ${{ env.binaryName }}.zip
+#              ${{ env.binaryName }}.exe
