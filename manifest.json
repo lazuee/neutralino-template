@@ -1,0 +1,6 @@
+{
+	"applicationId": "lazuee.neutralino.template",
+	"version": "%SemVer%",
+	"resourcesURL": "https://lazuee.github.io/neutralino-template/resources.neu",
+	"data": {}
+}

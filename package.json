@@ -1,0 +1,8 @@
+{
+	"name": "app",
+	"private": true,
+	"scripts": {
+		"start": "neu run",
+		"start:debug": "neu run -- --window-enable-inspector"
+	}
+}
