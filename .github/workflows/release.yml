@@ -77,20 +77,20 @@ jobs:
           with:
             name: build.workspace
             path: ${{ github.workspace }}
-            
-        - name: Download appacker
-          run: curl -s -L https://bluepload.unstable.life/selif/appackerv1311.exe > appacker.exe
+#         FIXME: Make appacker work! help (T_T)
+#        - name: Download appacker
+#          run: curl -s -L https://bluepload.unstable.life/selif/appackerv1311.exe > appacker.exe
           
 #        - name: Download resourceHacker
 #          run: curl -s -L https://bluepload.unstable.life/selif/resourcehacker.exe > resourceHacker.exe
           
         - name: Display structure of downloaded files
           run: ls -R
-          
-        - name: Pack launcher to Portable
-          run: |
-              $binaryName =$(cat ./neutralino.config.json | jq '.cli.binaryName' | tr -d '"')
-               ./appacker.exe -r -src "./dist/$binaryName" -exe "$binaryName-win_x64.exe" -ico "./www/app.png" -dst "./dist/$binaryName.exe"
+
+#         - name: Pack launcher to Portable
+#           run: |
+#               $binaryName =$(cat ./neutralino.config.json | jq '.cli.binaryName' | tr -d '"')
+#                ./appacker.exe -r -src "./dist/$binaryName" -exe "$binaryName-win_x64.exe" -ico "./www/app.png" -dst "./dist/$binaryName.exe"
 
         - name: Upload workspace
           uses: actions/upload-artifact@v3
