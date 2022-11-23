@@ -162,7 +162,7 @@ jobs:
         - name: Copy the files to pages
           run: |
               mkdir -p ./pages
-              mv "./dist/${{ env.binaryName }}" "./pages/public"
+              cp -r "./dist/${{ env.binaryName }}" "./pages/public"
               cp "./manifest.json" "./pages/manifest.json"
         - name: Push to github pages
           uses: s0/git-publish-subdir-action@develop
